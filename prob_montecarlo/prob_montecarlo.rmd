@@ -1,0 +1,231 @@
+---
+title: "More on probability theory and Monte Carlo Simulation"
+author: "jsn-jin @ UCLA"
+date: "1/24/2020"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    highlight: tango
+    theme: united
+    toc: yes 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Plot Two Density Curves On The Same Graph
+
+Suppose that $X \sim N(0, 4)$ and $Y \sim N(1, 1)$. Note the use of `dnorm` function in the following code chunk.
+```{r preparation}
+mu.x <- 0
+sigma.x <- 2
+
+mu.y <- 1
+sigma.y <- 1
+
+vals = seq(from = -5, to = 5, length = 150)
+df <- data.frame(vals, 
+                 dnorm(x = vals, mean = mu.x, sd = sigma.x), 
+                 dnorm(x = vals, mean = mu.y, sd = sigma.y))
+
+colnames(df)[1] <- "quantile"
+colnames(df)[2] <- "X" # rename the second column
+colnames(df)[3] <- "Y"
+
+head(df)
+```
+
+We can generate the plot using the `plot` function: 
+```{r plot}
+plot(df$quantile, 
+     df$X, 
+     type = "l", 
+     col = "blue", 
+     lwd = 2, 
+     ylim = c(0,0.5),
+     xlab = "x", 
+     ylab = "f(x)", 
+     main = "Two Density Curves")
+
+lines(df$quantile, 
+      df$Y, 
+      type = "l", 
+      col = "red", 
+      lwd = 2)
+
+legend(x = "topleft", 
+       legend = c("N(0, 4)", "N(1, 1)"),
+       col = c("blue","red"), 
+       lwd = 2,
+       box.lty = 2,
+       cex = 0.75,
+       inset = 0.05)
+```
+
+Or, we can apply the `ggplot` function:
+```{r ggplot}
+library(ggplot2)
+g <- ggplot(data = df) + 
+  geom_line(mapping = aes(x = quantile, y = X, color = "N(0,4)"), size = 1) +
+  geom_line(mapping = aes(x = quantile, y = Y, color = "N(1,1)"), size = 1) +
+  scale_color_manual(values = c('N(0,4)' = 'blue', 'N(1,1)' = 'red')) +
+  labs(color = 'Distributions') +
+  ylab("f(x)") +
+  xlab("x") +
+  xlim(-5, 5) + 
+  ylim(0, 0.5) +
+  ggtitle("Two Density Curves") +
+  scale_x_continuous(breaks = seq(-5, 5, by = 1)) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+print(g)
+```
+
+## Shade Areas Under The Density Curve
+
+Suppose we are interested in $Pr(1\leq X <2)$ and $Pr(X \leq -2)$
+```{r}
+g <- g + geom_area(data = subset(df, quantile >= 1 & quantile < 2),
+                   aes(x = quantile, y = X), fill = "green", alpha = 0.5)
+
+g <- g + geom_area(data = subset(df, quantile < -2),
+                   aes(x = quantile, y = X),  fill = "darkgrey", alpha = 0.5)
+print(g)
+```
+
+## Computing Probabilities (integrals) - A Numerical Way
+
+Please refer to this [handout](http://homepages.math.uic.edu/~jyang06/stat401/handouts/handout8.pdf) for more information.
+
+### Univariate Case
+
+To compute $Pr(1\leq X <2)$, we can directly apply the `pnorm` function:
+```{r}
+prob_univ = pnorm(2, mean = mu.x, sd = sigma.x) - pnorm(1, mean = mu.x, sd = sigma.x)
+prob_univ
+```
+
+Or, we can solve for $Pr(1\leq X <2)$ numerically, where $X\sim N(0, 4)$.
+```{r}
+# define the integrand
+f <- function(x) {1/sqrt(2*pi*4)*exp(-x^2/(2*4))}
+integrate(f, lower = 1, upper = 2)
+```
+
+Likewise, we can obtain $P(X\leq -2)$ in two ways:
+```{r}
+pnorm(-2, mean = mu.x, sd = sigma.x)
+integrate(f, lower = Inf, upper = -2) # based on previously defined integrand f
+```
+
+
+### Multivariate Case
+
+Consider the random vector
+$$
+\begin{pmatrix}
+X_1 \\
+X_2
+\end{pmatrix}\sim N\left(\begin{pmatrix}
+0 \\
+0
+\end{pmatrix},\begin{pmatrix}
+1 & 0.5 \\
+0.5 & 4
+\end{pmatrix}\right).
+$$
+
+We are interested in $P(-1 \leq X_1 \leq 1, -2 \leq X_2 \leq 3)$.
+
+Method 1:
+```{r}
+library(mvtnorm)
+cov <- matrix(c(1, 0.5, 0.5, 4), ncol =2, byrow = TRUE)
+prob_mtv = pmvnorm(lower = c(-1, -2), upper = c(1, 3), mean = c(0, 0), sigma = cov)
+prob_mtv
+```
+
+Method 2:
+```{r}
+library(cubature)
+f <- function(x, mu = c(0, 0), var = matrix(c(1, 0.5, 0.5, 4), ncol = 2, byrow = TRUE)){
+  k = length(x)
+  det_cov = det(var)
+  inv_cov = solve(var)
+  # the density function of a bivariate normal distribution
+  pdf = (2 * pi)^(-k / 2) * det_cov^(-1 / 2) * exp(-1 / 2 * t(x - mu) %*% inv_cov %*% (x - mu))
+  return(pdf)
+}
+adaptIntegrate(f, lowerLimit = c(-1, -2), upperLimit = c(1, 3))
+```
+Comment: **If you do not have the cumulative distribution function of a random variable/vector, at least you can define the pdf and solve for the probability of interest numerically.**
+
+
+## Monte Carlo Simulation
+
+[Monte Carlo methods](https://en.wikipedia.org/wiki/Monte_Carlo_method), or Monte Carlo experiments, are a broad class of computational algorithms that rely on repeated random sampling to obtain numerical results.
+
+We will apply the monte carlo simulation to compute the probabilities of interest
+
+### Example: $Pr(1\leq X <2)$
+
+First, generate 1000 random draws from the target distribution.
+
+```{r}
+set.seed(123) # for reporducible randomness
+# runs <- 5000
+runs <- 50000
+mu.x <- 0
+sigma.x <- 2
+
+X <- rnorm(runs, mu.x, sigma.x)
+head(X)
+```
+
+Now we compute the fraction of realizations falling between 1 and 2. This fraction is "approximately" the probability of interest when the number of runs is very large. (Weak law of large numbers)
+```{r}
+head(X >= 1 & X < 2)
+sum(X >= 1 & X < 2)/runs
+pnorm(2, 0 ,2) - pnorm(1, 0, 2)
+```
+
+Note that the fraction is "close to" the previously computed `r prob_univ`. At least, this is easier to implement than integrating the pdf over $[1, 2)$.
+
+### Example: $Pr(-1\leq X_1 < 1, -2 \leq X_2 <3)$
+
+Likewise, we can apply the monte carlo simulation to computing joint probabilities.
+
+```{r}
+# use the mvrnorm() function from the MASS package
+library(MASS)
+set.seed(2020)
+runs <- 5000
+X <- mvrnorm(runs, mu = c(0, 0), Sigma =  matrix(c(1, 0.5, 0.5, 4), ncol =2, byrow = TRUE ))
+class(X)
+head(X)
+res = sum(-1 <= X[, 1] & X[, 1] < 1 & -2 <= X[, 2] & X[, 2] < 3)/runs
+res
+```
+The `r res` is "close to" `r prob_mtv`. 
+
+
+### Example: $Pr( -3 \leq 2X_1 + 3X_2 <3)$
+
+Now we consider a new random variable $Y \equiv  2X_1 + 3X_2$. What is the probability $Pr( -3 \leq Z <3)$
+
+```{r}
+Y <- 2 * X[, 1] + 3 * X[, 2]
+res_Y <- sum( -3 <= Y & Y < 3 )/runs
+res_Y
+```
+
+Note that $Y$ is also normally distributed with mean $0$ and variance $47$. So we can verify the computed probability as follows.
+
+```{r}
+pnorm(3, mean = 0, sd = sqrt(47)) - pnorm(-3, mean = 0, sd = sqrt(47))
+```
+
+As we can see, the result from the monte carlo simulation is "close to" the true probability. However, **you do not need to derive the marginal distribution of the new random variable $Y$ in the MC simulation**.
+
