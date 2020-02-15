@@ -6,7 +6,7 @@ This repo contains some of the most basic applications of econometrics theories,
 
 Below is a short table of content: (you can find the corresponding folders and codes by name)
 1. A quick review of R and rmarkdown
-2. Return Calculation and Plotting
+2. Data input, Return Calculation, and basic R graphics
 3. More on probability theory and Monte Carlo Simulation
 4. VaR (value-at-risk) and ES (expected shortfall)
 5. Basic time-series analysis in R
