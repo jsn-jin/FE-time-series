@@ -1,0 +1,158 @@
+---
+title: "A quick review of R and rmarkdown"
+author: "jsn-jin @ UCLA"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**Do not forget to the change the working directory to some folder on your PC.**
+
+*To set up the working directory, maybe you also want to enter the same folder name, e.g., `setwd("Desktop")`, in the **Console** window.*
+
+
+# Advantages of R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>. In particular, you can check this R Markdown cheatsheet <https://rstudio.com/wp-content/uploads/2016/03/rmarkdown-cheatsheet-2.0.pdf> or the Markdown cheatsheet <https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet>.
+
+<u>The following are some nice features.</u>
+
+## R code chunks
+
+Click on "Insert" and then "R" buttons to embed a R code chunk within the document. Then, click the **Knit** button to create a document that *includes both content as well as the output*.
+
+```{r basic}
+# basic is the name of this code chunk
+x <- 2 - 3 * 4 / 5 ** 2
+x
+```
+
+As we can see, the result is `r x ** 2` (known as R inline code). 
+
+## Math inside R Markdown
+
+It is convenient to type mathematical expressions. **(Note: Do not leave a space between the $ and your mathematical notation.)**
+
+Example 1 (inline math): `$\sum_{n=1}^{100} n^2$` is rendered as $\sum\limits_{n=1}^{100} n^2$.
+
+Example 2 (equation block)):
+
+$$
+\sum_{n=1}^{10} n^2
+$$
+or
+$$
+\begin{align}
+R_t & = \frac{P_t - P_{t-1}}{P_{t-1}} \\
+  & = \frac{\$18 - \$15}{\$15}\\
+  &= 0.2 \text{ or } 20\%.
+\end{align}
+$$
+See [this page](https://www.calvin.edu/~rpruim/courses/s341/S17/from-class/MathinRmd.html) for more details on LaTex code.
+
+## Block-level elements
+
+Section headers can be written after a number of pound signs, e.g.,
+
+> # First-level header
+> ## Second-level header
+> ### Third-level header
+
+## Order and unordered list items
+
+Ordered list items start with numbers, and Unordered list items start with *, -, or +, and you can nest one list within another list by indenting the sub-list, e.g.,
+
+> 1. the first item
+> 2. the second item
+> 3. the third item
+>     - one unordered item
+>     - one unordered item
+
+See [this page](https://bookdown.org/yihui/rmarkdown/markdown-syntax.html#math-expressions) for more details.
+
+## Italics and bold
+
++ `*` or `_` can be used to note *emphasis*
++ `**` or `__` can be used to __bold text__
++ They can be used __*together*__ (text in bold italics)
+
+**In the future, you are required to write homework answers using R Markdown!**
+
+
+# Short introduction to programming with R
+
+We aim to go over some of the commands in this [cheatsheet](https://rstudio.com/wp-content/uploads/2016/10/r-cheat-sheet-3.pdf).
+
+## Download dataset
+
+## load dataset
+
+To import the excel file with .csv extension, we use the function read.csv. It reads from an Excel spreadsheet and returns a data frame. 
+
+```{r df}
+getwd()
+
+# load the dataset in the working directory
+df <- read.csv("MSFT.csv")
+
+# set output options to show only 5 significant digits (optional)
+options(digits = 5) 
+
+class(df) # type of object
+head(df) # first 6 rows
+summary(df) # summary statistics
+```
+
+For excel file with .xls or .xlsx extension, we can use the function read_excel from the readxl package.
+
+```{r}
+# install.packages('readxl')
+# load the 'readxl' package
+library(readxl)
+
+df <- read_excel('MSFT.xlsx')
+head(df)
+```
+
+## Variables
+
+```{r}
+open <- df$Open
+close <- df$Close
+class(open)
+head(open)
+open[1:5] # Square brackets! 1 and 5 are indices
+```
+
+## for loop
+
+```{r loop}
+length(close)
+for (t in 1:length(close)){
+  df$diff[t] <- close[t] - open[t]
+}
+
+# or you can do
+df$diff_new = close - open 
+head(df)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r df_1, echo = FALSE}
+plot(df$Date, 
+     df$Open, 
+     main = "Opening MSFT Prices",
+     ylab = "Prices", 
+     xlab = 'Date')
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+(We can use ggplot2 to create better figures.)
