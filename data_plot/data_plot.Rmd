@@ -1,0 +1,314 @@
+---
+title: "Data input, Return Calculation, and basic R graphics"
+author: "jsn-jin @ UCLA"
+output:
+  pdf_document:
+    latex_engine: xelatex
+    toc: yes
+    toc_depth: 4
+  html_document:
+    code_folding: show
+    df_print: paged
+    highlight: haddock
+    theme: readable
+    tidy: yes
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+    css: style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Part 1: Download Financial Data from Yahoo Finance 
+
+To get data from Yahoo Finance, you can follow the following step:
+
+1. Go to http://finance.yahoo.com/
+
+2. In the Quote Lookup box type the symbol of the stock for which you want data. For example, the symbol for Microsoft is MSFT. If you do not know the ticker symbol, you can type the full name of the company in the Quote Lookup box. Then you will see its ticker symbol from the list below the box.
+
+3. The recent quote for your stock as well as a wealth of other information will be presented on a new page. To get historical prices, click the "Historical Data" link on the upper middle panel of the page.
+
+4. A new page will open and you will be able to specify the date ranges for the data to be downloaded and the frequency of the data (daily, weekly or monthly).
+
+5. After setting the date and frequency information, click the Apply button.
+
+6. At the bottom of the "Apply" button click on "Download Data". This will bring up a Save As dialogue box. Specify a name for the file and save to disk. Each file will contain 6 columns. For monthly data, the column labeled Open gives the opening price at the beginning of the month, the column labeled High gives the highest price during the month, the column labeled Low gives the lowest price during the month, the column labeled Close gives the closing price during the month and the column labeled Volume gives the total monthly volume. The open and the close data have been adjusted for dividends and stock splits. Use the (adjusted) close data for your analysis.
+
+\textbf{Exercise:}
+Download the histrical weekly price data of Apple Inc. (AAPL) and save the corresponding data set to your laptop. The time period is 01/01/2015-12/31/2018, the frequency of the price is weekly. We will use this data set for today's discussion. 
+
+## Part 2: Basic Data Analysis
+
+###Load the Data Set
+```{r}
+df <- read.csv(file = "aapl.csv", head = TRUE, sep=",", stringsAsFactors = FALSE)
+head(df)
+
+# Better Choice: tidyverse
+library(tidyverse)
+df2 <- read_csv(file = "aapl.csv")
+```
+
+###Data Manipulation 
+```{r}
+options(digits = 4)
+Date <- df$Date
+Open <- df$Open
+AdjClose <- df$Adj.Close
+Low <- df$Low
+High <- df$High
+Volume <- df$Volume
+
+class(df)
+head(df)
+tail(df)
+
+# class(Date)
+# class(Open)
+# class(AdjClose)
+# class(Low)
+# class(High)
+# class(Volume)
+```
+
+Next, we will focus on the variable "Close". Let's first calculate some summary statistics. 
+
+```{r}
+summary(AdjClose)
+length(AdjClose) # Number of rows.
+hist(AdjClose, 
+     prob = TRUE,
+     xlab = "Weekly Close Price", 
+     xlim = c(50, 250), 
+     main = "Histogram of AAPL's Weekly Close Price",
+     breaks = 10,
+     density = 20,
+     angle = 30,
+     col = rainbow(10))
+
+lines(density(AdjClose), lwd = 2, col = "blue")
+```
+```{r}
+plot(AdjClose, 
+     type = "l", 
+     col = "red", 
+     lwd = 2, 
+     xlab = "Date",
+     ylab = "Adjusted Closing Price",
+     main = "Weekly Closing Price of AAPL")
+
+# now add a legend
+legend(x = "topleft", 
+       legend = "AAPL ", 
+       lty = 1, 
+       lwd = 2,
+       box.lty = 2,
+       col = "red", 
+       cex = 0.75,
+       inset = .05)
+```
+
+```{r}
+# add week in the x-axis
+n <- length(AdjClose)
+date_i <- seq(from = 1, to = n, by = 1)
+plot(AdjClose, 
+     type = "l", 
+     col = "red", 
+     lwd = 2,
+     ylab = "Adjusted Closing Price", 
+     xlab = "Weeks (01/01/2015-12/31/2018)", 
+     xaxt = 'n',
+     main = "Weekly Closing Price of AAPL")
+
+axis(1, at = date_i)
+
+legend(x = "topleft", 
+       legend = "AAPL", 
+       lty = 1, 
+       lwd = 2, 
+       box.lty = 2,
+       col = "red",
+       cex = 0.75,
+       inset = 0.05)
+```
+
+## Part 3: Calculating Returns
+
+###Simple Weekly Returns
+
+```{r}
+# simple 1-week returns
+n <- nrow(df)
+aapl.ret <- (df[2:n,6] - df[1:(n-1),6]) / df[1:(n-1),6]
+
+# example for vectorization
+a <- c(1,3,5,7,9)
+b <- c(9,7,5,3,1)
+a - b
+
+# notice that aapl.ret is not a data.frame object
+class(aapl.ret)
+
+# now add dates as names to the vector. 
+names(aapl.ret) <- rownames(df)[2:n]
+head(aapl.ret)
+
+# Note: to ensure that aapl.ret is a data.frame use drop = FALSE when computing returns
+aapl.ret.df <- (df[2:n,6, drop = FALSE] - df[1:(n-1), 6, drop = FALSE]) / df[1:(n-1), 6, 
+                                                                             drop = FALSE]
+
+```
+
+```{r}
+plot(aapl.ret, 
+     type = "l", 
+     col = "blue", 
+     lwd = 2, 
+     xlab = "Weeks (01/01/2015-12/31/2018)", 
+     ylab = "Return", 
+     xaxt = 'n',
+     main = "Weekly Simple Returns on AAPL")
+
+date_i = seq(from = 1, to = n-1, by = 1)
+axis(1, at=date_i)
+
+legend(x = "topleft", 
+       legend = "AAPL Simple Returns", 
+       lty = 1, 
+       lwd = 2, 
+       box.lty = 2,
+       col = "blue",
+       cex = 0.75,
+       inset = 0.05)
+```
+
+\textbf{Exercise:}
+
+Please repeat the same exercise as above for compound returns and make a plot. You can put both plots into a single graph and compare their difference. 
+
+###Compoud Weekly Returns
+
+```{r}
+aapl.ccret = log(1 + aapl.ret)
+head(aapl.ccret)
+
+# alternatively
+aapl.ccret = log(df[2:n,6]) - log(df[1:(n-1),6])
+names(aapl.ccret) = rownames(df)[2:n]
+head(aapl.ccret)
+head(aapl.ret)
+aapl.ccret.df = log(df[2:n,6]) - log(df[1:(n-1),6])
+```
+
+```{r}
+plot(aapl.ccret, 
+     type = "l",
+     col = "blue",
+     lwd = 2,
+     xlab = "Weeks (01/01/2015-12/31/2018)", 
+     ylab = "Return", 
+     xaxt = 'n',
+     main = "Weekly Continuously Compouded Returns on AAPL")
+
+date_i = seq(from = 1, to = n-1, by = 1)
+axis(1, at = date_i)
+legend(x = "topleft", 
+       legend = "AAPL CC Returns", 
+       lty = 1, 
+       lwd = 2, 
+       box.lty = 2,
+       cex = 0.75,
+       col = "blue",
+       inset = 0.05)
+```
+
+
+###Put Two Graphs Together
+```{r}
+par(mfrow = c(2,1))   
+# par stands for partition
+
+plot(aapl.ret, 
+     type = "l", 
+     col = "blue", 
+     lwd = 2, 
+     xlab = "Weeks (01/01/2015-12/31/2018)", 
+     ylab = "Return", 
+     xaxt = 'n',
+     main = "Weekly Simple Returns on AAPL")
+
+date_i = seq(from = 1, to = n-1, by = 1)
+axis(1, at = date_i)
+legend(x = "topleft", 
+       legend = "AAPL Simple Returns", 
+       lty = 1, 
+       lwd = 1, 
+       cex = 0.5,
+       col = "blue")
+
+abline(h=0)  
+# next plot the cc returns
+
+plot(aapl.ccret, 
+     type = "l", 
+     col = "blue", 
+     lwd = 2, 
+     xlab = "Weeks (01/01/2015-12/31/2018)", 
+     ylab = "Return", 
+     xaxt = 'n',
+     main = "Weekly Continuously Compouded Returns on AAPL")
+
+date_i = seq(from = 1, to = n-1, by = 1)
+axis(1, at = date_i)
+legend(x = "topleft", 
+       legend = "AAPL CC Returns", 
+       lty = 1, 
+       lwd = 1, 
+       cex = 0.5,
+       col = "blue")
+
+abline(h=0)
+
+# reset the screen to 1 row and 1 column
+# par(mfrow = c(1,1))     
+```
+
+
+```{r}
+# plot the returns on the same graph
+plot(aapl.ret, 
+     type = "l", 
+     col = "brown", 
+     lwd = 1, 
+     ylab = "Return", 
+     xaxt = 'n',
+     main = "Weekly Returns on AAPL")
+
+# add horizontal line at zero
+abline(h=0)   
+
+# add the cc returns
+lines(aapl.ccret, 
+      col = "green", 
+      lwd = 1, 
+      xaxt = 'n')
+axis(1, at = date_i)
+
+help(legend)
+
+# add a legend
+legend(x = "topleft", 
+       legend = c("Simple Return", "CC Return"), 
+       lty = 1, 
+       lwd = 2, 
+       col = c("brown","green"),
+       box.lwd = 0.5,
+       cex = 0.5,
+       inset = 0.05,)
+```
+
