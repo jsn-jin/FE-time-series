@@ -2,6 +2,7 @@
 title: "A quick review of R and rmarkdown"
 author: "jsn-jin @ UCLA"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
 ---
@@ -46,11 +47,11 @@ $$
 $$
 or
 $$
-\begin{align}
+\begin{aligned}
 R_t & = \frac{P_t - P_{t-1}}{P_{t-1}} \\
   & = \frac{\$18 - \$15}{\$15}\\
   &= 0.2 \text{ or } 20\%.
-\end{align}
+\end{aligned}
 $$
 See [this page](https://www.calvin.edu/~rpruim/courses/s341/S17/from-class/MathinRmd.html) for more details on LaTex code.
 
