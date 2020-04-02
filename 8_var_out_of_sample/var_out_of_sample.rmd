@@ -1,0 +1,403 @@
+---
+title: "VaR and Out-of-Sample Evaluation"
+author: "jsn-jin @ UCLA"
+date: "02-28-20"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    highlight: tango
+    number_sections: no
+    theme: united
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+# **Part I**
+**The value at risk (VaR)** is defined as the $\alpha$ quantile of the profit of an investment. In this lab we will conduct simulation to investigate the role of the this important parameter in risk management.
+
+We use the example discussed in class as illustration. Consider a $\$10,000$ investment in *Amazon* for 1 month. Assume that 
+
+$$
+\begin{aligned}
+r& =\text{cc monthly return on Amazon} \\
+r& \sim N(0.05,0.01), ~\mu_{r} = 0.05, ~\sigma_{r} = 0.10.
+\end{aligned}
+$$
+
+Define the profit of the investment as
+
+$$
+L_{1} = W_{1} - W_{0} = W_{0} \cdot (e^{r} - 1) = 10,000 (e^{r} - 1)
+$$
+
+where $W_{0}$ and $W_{1}$ denote the initial value and future value of the investment. Then the VaR$_{\alpha}$ of the investment is
+
+$$
+\text{VaR}_{\alpha } = 10,000 (e^{q_{\alpha}^{r}}-1)
+$$
+
+where $q_{\alpha}^{r}$ is the $\alpha$ quantile of the cc return $r$.
+
+```{r global-part-1}
+# Declare global variables
+W0 <- 10000 # Initial value of the investment
+N_Exp <- 500 # Number of simulations 
+```
+
+## Problem 1
+Calculate VaR$_{0.1}$. Find the probability that $L_{1}$ is less than VaR$_{0.1}$ using 500 replicated experiments.
+
+```{r}
+set.seed(1)
+# Simulate monthly cc returns
+r <- rnorm(N_Exp, mean = 0.05, sd = 0.1)
+
+# Simulate profits
+L1 <- W0 * (exp(r) - 1)
+
+# Paramatric VaR / Paramatric Estimation
+VaR_01 <- W0 * (exp(qnorm(0.1, 0.05, 0.1)) - 1)
+
+# Empirical Probability
+Out_v1 <- as.numeric(L1 < VaR_01)
+mean(Out_v1)
+```
+
+
+## Problem 2
+Plot the simulated profits (as a function of their index in the replicated experiments). Plot the line of VaR$_{0.1}$ in the same picture. Explain what you find in the picture.
+
+```{r}
+index <- 1:N_Exp
+
+plot(index, 
+     L1, 
+     type = "l", 
+     col = "blue",
+     xlab = "Experiment (index)",
+     ylab = "Profit",
+     main = "Simulated Profit and VaR_0.1")
+
+abline(h = VaR_01, col = "red")
+
+legend("topleft", 
+       legend = c("Profit", "VaR_0.1"), 
+       lty = c(1,1), 
+       col = c("blue", "red"), 
+       cex = 0.75, 
+       inset =  0.02)
+
+Out_v2 <- as.numeric(L1 < VaR_01)
+sum(Out_v2)
+mean(Out_v2)
+```
+
+
+## Problem 3
+Calculate $W_{0}$ + VaR$_{0.1}$. Find the probability that $W_{1}$ is less than $W_{0}$ + VaR$_{0.1}$ using 500 replicated experiments.
+
+```{r}
+W1 <- W0 + L1
+W0_VaR <- W0 + VaR_01
+Out_v3 <- as.numeric(W1 < W0_VaR)
+mean(Out_v3)
+```
+
+
+## Problem 4
+Plot the simulated future values (as a function of their index in the replicated experiments). Plot the lines of $W_{0}$ and $W_{0}$ + VaR$_{0.1}$ in the same picture. Explain what you find in the picture.
+
+```{r}
+plot(index, 
+     W1, 
+     type ="l", 
+     col = "blue",
+     xlab = "Experiment (index)",
+     ylab = "Future Value",
+     main = "Simulated Future Value and W0_VaR")
+
+abline(h = W0, col = "black")
+
+abline(h = W0_VaR, col = "red")  
+
+legend("topleft", 
+       legend = c("W1", "W0", "W0_VaR"), 
+       lty = c(1,1,1), 
+       col = c("blue", "black", "red"), 
+       cex = 0.75, 
+       inset =  0.02)
+```
+
+Comment:
+1. There are more W1 values above the black line (W0) then below the black line, meaning the expected future value should be larger than the initial value.
+2. The number of W1 values below the red line (W0_VaR) are about the same as the number of L1 values below the red line (VaR_0.1) in problem 3, which is consistent with our expectation.
+
+
+
+# **Part II**
+Next we consider estimation of the mean, variance and VaR$_{\alpha}$ using the *simulated data*. For VaR$_{\alpha}$, we consider $\alpha = 0.1$ and both the parametric and nonparametric estimators discussed in class.
+
+We first generate 500 cc returns $\{ r_{1}, r_{2}, \ldots, r_{500} \}$ from $N ( \mu , \sigma ^{2} )$ where $\mu = 0.05$ and $\sigma^{2} = 0.01$. These 500 simulated values are treated as cc returns of 500 trading dates. In this simulation study, for any date $t$ ($t > 300$), we use 300 historic data before $t$ to estimate $\mu$, $\sigma^{2}$ and VaR$_{0.1}$. For example, at time 301 we use $\{ r_{1}, r_{2}, \ldots, r_{300} \}$ for estimation, and at time 302 we use $\{ r_{2}, r_{3}, \ldots, r_{301} \}$ for estimation and etc. Therefore, we will get 200 estimators of $\mu$, $\sigma^{2}$ and VaR$_{0.1}$ respectively.
+
+```{r global-part-2}
+S <- 500 # Total number of cc returns generated
+E <- 300 # Length of the "window" used for estimation
+N_Est <- S - E # We will have 200 estimations (500 - 300)
+```
+
+
+## Problem 5
+Plot the (200) estimated mean and the true mean. Explain what you find in the picture.
+
+```{r}
+set.seed(1)
+r <- rnorm(S, mean = 0.05, sd = 0.1)
+
+# Create empty vectors to store mean, variance, W1, L1, parametric VaR, and non-parametric VaR
+Out_m <- rep(0, N_Est) 
+Out_v <- rep(0, N_Est)
+Out_W1 <- rep(0, N_Est)
+Out_L1 <- rep(0, N_Est)
+Out_VaR1 <- rep(0, N_Est)
+Out_VaR2 <- rep(0, N_Est)
+
+for (s in seq_len(N_Est)) {
+  s1 <- s + E - 1 # The last date we will use to estimate, e.g. 300 for the 1st iteration
+  Data <- r[s:s1]
+  
+  Out_m[s] <- mean(Data)
+  Out_v[s] <- mean(Data^2) - (mean(Data))^2 * E/(E-1) # Sample variance
+  
+  Out_L1[s] <- W0 * (exp(r[s + E]) - 1)
+  Out_W1[s] <- W0 + Out_L1[s]
+  
+  # Two methods to calculate VaR
+  # Method 1: parametric
+  q1 <- qnorm(0.1, Out_m[s], Out_v[s]^(0.5))
+  Out_VaR1[s] <- W0 * (exp(q1) - 1)
+  
+  # Method 2: non-parametric (no assumption about the structure of the distribution)
+  q2 <- quantile(Data, probs = 0.1, type = 1)
+  Out_VaR2[s] <- W0 * (exp(q2) - 1)
+}
+```
+
+Plot the estimated means.
+
+```{r}
+plot(1:N_Est, 
+     Out_m, 
+     type = "l", 
+     col = "blue", 
+     ylim = range(c(0.03, 0.07)),  
+     xlab = "Estimation (200) (index)",
+     ylab = "",
+     main = "Estimated Means and True Mean")
+
+par(new = TRUE)
+
+abline(h = 0.05, col = "green")
+
+legend(x = "topright", 
+       legend = c("Sample Mean", "True Mean"), 
+       lty = c(1, 1),
+       col = c("blue", "green"),
+       cex = 0.75, 
+       inset = 0.02)
+```
+
+Comment:
+The estimated (sample) means are relatively close to the true mean. For the most of the instance, the sample mean is slightly higher than the true mean.
+
+
+## Problem 6
+Plot the (200) estimated variance and the true variance. Explain what you find in the picture.
+
+```{r}
+plot(1:N_Est, 
+     Out_v, 
+     type = "l", 
+     col = "blue", 
+     ylim = range(c(0.005, 0.015)),  
+     xlab = "Estimation (200) (index)",
+     ylab = "",
+     main = "Estimated Variances and True Variance")
+
+par(new = TRUE)
+
+abline(h = 0.01, col = "green")
+
+legend(x = "topright", 
+       legend = c("Sample Variance", "True Variance"), 
+       lty = c(1, 1),
+       col = c("blue", "green"),
+       cex = 0.75, 
+       inset = 0.02)
+```
+
+Comment:
+The estimated (sample) variances are relatively close to the true variance. However, there is a stochastic trend on the graph - sample variance increases as we move the window from 1-300 to 200-500.
+
+
+## Problem 7
+Plot the true VaR$_{0.1}$ and the (200) estimated parametric and nonparametric VaRs. Explain what you find in the picture.
+
+```{r}
+# Plot the estimated parametric VaRs
+plot(1:N_Est, 
+     Out_VaR1, 
+     type = "l", 
+     col = "pink", 
+     xlab = "Experiment (200) (index)",
+     ylab = "Value-at-Risk (0.1)", 
+     xlim = range(c(1, N_Est)),
+     ylim = range(c(-1200, -200)),
+     main = "Estimated VaR and True VaR")
+
+par(new = TRUE)
+
+# Plot the estimated non-parametric VaRs
+plot(1:N_Est, 
+     Out_VaR2, 
+     type = "l", 
+     col = "purple", 
+     xlab = "",
+     ylab = "", 
+     xlim = range(c(1, N_Est)),
+     ylim = range(c(-1200, -200)))
+
+# Plot the true VaR_0.1
+q_0.1 <- qnorm(0.1, 0.05, 0.1)
+VaR_0.1 <- W0 * (exp(q_0.1) - 1)
+abline(h = VaR_0.1, col = "red")
+
+# Legend
+legend(x = "topright", 
+       legend = c("Est_ParaVaR", "Est_NpVaR", "True_VaR"), 
+       lty = c(1, 1, 1), 
+       col = c("pink", "purple", "red"), 
+       cex = 0.75, 
+       inset = 0.02)
+```
+
+Comment:
+Both of the estimated VaRs are close to the true value. The parametric estimation is usually more accurate.
+
+## Problem 8
+Suppose at each trading date, we invest $W_0 = \$10,000$ at the beginning of the date and close the position at the end of the date. Calculate the profits of the investment at each trading date. Also calculate the future values of the investment at the end of the trading date.
+
+```{r}
+# We have already done this in question 5.
+head(Out_L1)
+head(Out_W1)
+```
+
+## Problem 9
+Plot the profits from the trading date 301 to the trading date 500. Plot the parametric and nonparametric estimators of the VaR$_{0.1}$ in the same picture. Calculate the relative frequencies that the profits cross the estimators of the VaR$_{0.1}$.
+
+```{r}
+# Plot the profits
+plot(1:N_Est,
+     Out_L1,
+     type = "l",
+     col = "blue",
+     xlab = "Experiment (200) (index)",
+     ylab = "Estimated Profits and VaRs",
+     xlim = range(c(1, N_Est)),
+     ylim = range(c(-2500, 6000)),
+     main = "Estimated Profits and VaRs")
+
+par(new = TRUE)
+
+# Plot the parametric estimates of the VaR_0.1
+plot(1:N_Est,
+     Out_VaR1,
+     type = "l",
+     col = "pink",
+     xlab = "",
+     ylab = "",
+     xlim = range(c(1, N_Est)),
+     ylim = range(c(-2500, 6000)))
+
+par(new = TRUE)
+
+# Plot the non-parametric estimates of the VaR_0.1
+plot(1:N_Est,
+     Out_VaR2,
+     type = "l",
+     col = "purple",
+     xlab = "",
+     ylab = "",
+     xlim = range(c(1, N_Est)),
+     ylim = range(c(-2500, 6000)))
+
+legend(x = "topleft",
+       legend = c("L1 (Estimated Profit)", "Est_ParaVaR", "Est_NpVaR"),
+       lty = c(1, 1, 1),
+       col = c("blue", "pink", "purple"),
+       cex = 0.75,
+       inset = 0.02)
+```
+
+```{r}
+a1 <- as.numeric(Out_L1 < Out_VaR1)
+a2 <- as.numeric(Out_L1 < Out_VaR2)
+mean(a1)
+mean(a2)
+```
+
+## Problem 10
+Plot the future values of the investment from the trading date 301 to the trading date 500. Calculate the sum of $\$10,000$ + VaR$_{0.1}$ for VaR$_{0.1}$ being the parametric and nonparametric estimators respectively. Plot the future values, the two summations ($\$10,000 + $VaR$_{0.1}$ for VaR$_{0.1}$ being the parametric and nonparametric estimators) in the same picture. Explain what you find in the picture.
+
+```{r}
+QW1 <- W0 + Out_VaR1
+QW2 <- W0 + Out_VaR2
+
+plot(1:N_Est,
+     Out_W1,
+     type = "l",
+     col = "blue",
+     xlab = "Experient (200) (index)",
+     ylab = "Future Value and Sum of Initial Value and VaR's",
+     xlim = range(c(1, N_Est)),
+     ylim = range(c(7500, 16000)),
+     main = "Future Values and W0 + VaR's")
+
+par(new = TRUE)
+
+plot(1:N_Est,
+     QW1,
+     type = "l",
+     col = "pink",
+     xlab = "",
+     ylab = "",
+     xlim = range(c(1, N_Est)),
+     ylim = range(c(7500, 16000)))
+
+par(new = TRUE)
+
+plot(1:N_Est,
+     QW2,
+     type = "l",
+     col = "purple",
+     xlab = "",
+     ylab = "",
+     xlim = range(c(1, N_Est)),
+     ylim = range(c(7500, 16000)))
+
+legend(x = "topleft",
+       legend = c("W1 (Estimated Future Values)", "W0 + Est_ParaVaR", "W0 + Est_NpVaR"),
+       lty = c(1, 1, 1),
+       col = c("blue", "pink", "purple"),
+       cex = 0.75,
+       inset = 0.02)
+```
+
+Comment:
+This graph is almost the same as the plot we made in problem 9. Except the mean value (+W0), everything else is the same.

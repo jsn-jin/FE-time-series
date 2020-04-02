@@ -1,0 +1,214 @@
+---
+title: "Leverage Effects of Hedge Funds"
+author: "jsn-jin @ UCLA"
+date: "02-21-2020"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    highlight: tango
+    number_sections: no
+    theme: united
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Leverage Effects of Hedge Funds
+
+Hedge funds can earn high profits by the use of leverage, but leverage also creates high risk. The simulations in this experiment explore the effects of leverage. Suppose a hedge fund owns \$1,000,000 of stock and used \$50,000 of its own capital and \$950,000 in borrowed money for the purchase. If the value of the stock falls below \$950,000 at the end of any trading day, then the
+hedge fund must sell all the stock and repay the loan. This will wipe out its \$50,000 investment. **The hedge fund is said to be leveraged 20:1 since its position is 20 times the amount of its own capital invested.** Let $R_t$ denote the daily simple return of the stock at time t. Then $r_t = log(1 + R_t)$ is the daily log/cc return of this stock. Suppose $\{\cdots, r_{t-1}, r_t, r_{t+1}, \dots\}$ are independent normal random variables with mean 0.05/253 and variance $(0.23)^2 /253$, respectively.
+
+**Suppose the hedge fund will sell the stock for a profit of at least \$100,000 if the value of the stock rises to at least \$1,100,000 at the end of one of the 45 trading days, sell it for a loss if the value falls below \$950,000 at the end of one of the 45 trading days, or sell after 45 trading days if the closing price has stayed between \$950,000 and \$1,100,000.**
+
+## Part I
+
+What is the probability that the value of the stock will be below
+\$950,000 at the close of at least one of the next 45 trading days?
+
+We can solve for the probability of interest by monte carlo simulation.
+
+```{r}
+mu.r <- 0.05 / 253
+sigma.r <- 0.23 / sqrt(253)
+
+n.day <- 100 # num of trading days
+runs <- 5000
+W0 <- 1000000
+capital <- 50000
+
+set.seed(2020)
+r <- rnorm(runs * n.day, mu.r, sigma.r)
+r <- matrix(r, nrow = n.day, byrow = TRUE)
+
+dim(r)
+
+head(r[, 1:5])
+```
+
+After generating the simulated data of cc returns, we can determine the simulated stock values.
+
+```{r}
+# compute the value of stock at the end of each day
+# W_func <- function(r.col, w0 = W0, THRES = thres) {
+#   res <- rep(-1, n.day) # a seq for storing results
+#   res[1] <- w0 * exp(r.col[1])
+#   hold <- n.day # by default, hold the stock till the last day
+#   for (i in 2:n.day) {
+#     if (res[i-1] >= THRES) {
+#       res[i] <- res[i-1] * exp(r.col[i]) 
+#     } else {
+#       hold <- i-1
+#       res[i:n.day] <- 0
+#       break
+#     }
+#   }
+#   list(res.col = res, hold.n = hold)
+# }
+
+W_func <- function(r.col, lb = W0 - capital, ub = W0 + 100000) {
+  res <- rep(-1, n.day) # a seq for storing results
+  res[1] <- W0 * exp(r.col[1])
+  hold <- n.day # by default, hold the stock till the last day
+  for (i in 2:n.day) {
+    if (res[i-1] >= lb & res[i-1] <= ub) {
+      res[i] <- res[i-1] * exp(r.col[i]) 
+    } else if (res[i-1] > ub ) {
+      hold <-  i - 1
+      res[i:n.day] <- res[i-1]
+      break
+    } else {
+      hold <- i - 1
+      res[i:n.day] <- 0
+      break
+    }
+  }
+  list(res.col = res, hold.n = hold)
+}
+
+W <- matrix(-1, nrow = n.day, ncol = runs)
+hold <- rep(-1, runs)
+
+for (i in 1:runs) {
+  temp <- W_func(r[,i])
+  W[,i] <- temp$res.col
+  hold[i] <- temp$hold.n
+}
+
+head(W[, 1:5])
+```
+
+Through monte carlo simulation, we can first calculate the probability that the stock value will be no less than \$950,000 at the close of each day. Then, subtracting this probability from 1 yields the probability of interest.
+    
+```{r}
+ans1 <- 1 - sum(W[n.day,] >= W0 - capital) / runs
+ans1
+```
+
+Moreover, we can consider the probability that the stock value will be below \$950,000 at the close of each day. 
+
+```{r}
+P <- rep(0, n.day)
+for (i in 1:n.day) {
+  P[i] <- sum(W[i,] <  W0 - capital)/runs
+}
+
+P
+```
+
+Though the probability $Pr(W_1 < 95,000)$ is nearly 1 as shown below. The probabilities of losing own capital grow quickly with trading days.
+
+```{r}
+x.vals <- seq(-0.25, 0.25, length = 1000)
+df <- data.frame(x.vals, dnorm(x.vals, mu.r, sigma.r))
+colnames(df) <- c("x", "y")
+head(df$y)
+library(ggplot2)
+ggplot(data = df) + 
+  geom_line(mapping = aes(y=y,x= x, color = "N( 0.05/253, (0.23)^2 /253)"), size = 1) + 
+  labs(color = "Distribution", x = "x", y = "f(x)") +
+  geom_vline(xintercept=log(0.95))
+```
+
+
+## Part II
+
+What is the probability that the hedge fund will make a profit of at least \$100,000?
+
+```{r}
+sum(W[n.day,] > W0 + 100000) / runs
+```
+
+
+## Part III
+
+What is the probability the hedge fund will suffer a loss?
+
+```{r}
+sum(W[n.day, ] < W0) / runs
+```
+
+The probability mirrors two possible events:
+  
+  - lose the stock at the end of any trading day
+  - the stock value at the end of day 45 is between \$950,000 and \$1,000,000.
+
+```{r}
+ans2 <- sum(W[n.day, ] <= W0 & W[n.day, ] > W0 - capital) / runs
+ans2 + ans1
+```
+
+
+## Part IV
+
+What is the expected profit from this trading strategy?
+
+```{r}
+# rm(profit)
+profit <- rep(0, runs)
+for (i in 1:runs) {
+  profit[i] <- W[hold[i], i] - W0
+}
+head(profit)
+head(W[,1:6])
+sprintf("The expected profit is %#.3f", mean(profit))
+```
+
+
+## Part V
+
+What is the expected averaging return? When answering this question, remember that only \$50,000 was invested. Also, the units of return are time, e.g., one can express a return as a daily averaging return. Therefore, one must keep track of how long the hedge fund holds its position before selling.
+
+The geometric average will be used to compute the average return.
+
+```{r}
+ret.avg <- rep(0, runs)
+for (i in 1:runs) {
+  ret.avg[i] <- ((profit[i]) / 50000) / hold[i]
+}
+
+head(ret.avg)
+sprintf("The expected (arithmetic) average return is %#.4f", mean(ret.avg))
+
+sprintf("Given the hedge fund makes a profit, the expected average return is %#.4f", 
+        mean(ret.avg * (profit >= 0)) / mean(profit >= 0))
+
+sprintf("The probability of making a profit is %#.4f", 
+        mean(profit >= 0))
+
+sprintf("Accordingly, the conditional profit is %f", 
+        mean(profit * (profit >= 0)) / mean(profit >= 0))
+
+sprintf("Given the hedge fund suffers a loss, the expected average return is %#.4f", 
+        mean(ret.avg * (profit < 0)) / mean(profit < 0))
+
+sprintf("The probability of making a profit is %#.4f",
+        mean(profit < 0))
+
+sprintf("Accordingly, the conditional profit is %f", 
+        mean(profit * (profit < 0)) / mean(profit < 0))
+```
+
+

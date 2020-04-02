@@ -1,12 +1,14 @@
 ---
 title: "Value at Risk and Expected Shortfall"
 author: "jsn-jin @ UCLA"
-output: 
+output:
+  pdf_document:
+    toc: yes
   html_document:
-    toc: TRUE
-    number_sections: TRUE
-    theme: united
     highlight: tango
+    number_sections: yes
+    theme: united
+    toc: yes
 ---
 
 ```{r setup, include = FALSE }

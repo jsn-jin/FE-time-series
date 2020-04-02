@@ -1,0 +1,137 @@
+---
+title: "Obtain Financial Data Online"
+author: "jsn-jin @ UCLA"
+date: "03-07-2020"
+output:
+  html_document:
+    highlight: tango
+    number_sections: yes
+    theme: united
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+# Obtain Online Data
+
+```{r}
+library(BatchGetSymbols)
+
+# Set dates
+first.date <- as.Date("01/01/1998", format = "%m/%d/%Y")
+last.date <- as.Date("12/31/2009", format = "%m/%d/%Y")
+freq.data <- 'daily' # 'monthly'
+
+# Set tickers
+tickers <- c('^GSPC','SBUX') # The names of the stocks
+
+l.out <- BatchGetSymbols(tickers = tickers, 
+                         first.date = first.date,
+                         last.date = last.date, 
+                         freq.data = freq.data) # cache in tempdir()```
+
+# This function is designed to make batch downloads of financial data using getSymbols. 
+# Based on a set of tickers and a time period, the function will download the data for each ticker and return a report of the process, along with the actual data in the long dataframe format. 
+# The main advantage of the function is that it automatically recognizes the source of the dataset from the ticker and structures the resulting data from different sources in the long format. A caching system is also presente, making it very fast.
+
+summary(l.out) # See the elements in the list
+str(l.out) # Structure of a list
+
+SP <- subset(l.out$df.tickers, ticker == "^GSPC")
+SBUX <- subset(l.out$df.tickers, ticker == "SBUX")
+
+class(SP)
+head(SP)
+```
+
+# Plot Historical Prices
+
+```{r}
+myplot <- function(df, name){
+  library(dygraphs) # Interface to 'Dygraphs' Interactive Time Series Charting Library 
+  library(xts) # eXtensible Time Series
+  
+  # Select a few columns
+  data <- df %>% select(price.high, price.low, price.open, price.close) # Select data
+  data <- as.xts(data, order.by = df$ref.date) # Transform the data into xts class
+  
+  dygraph(data, main = name) %>%
+    dyCandlestick() %>%
+    dyRoller(rollPeriod = 2) %>%
+    dyRangeSelector()
+}
+
+myplot(SP, "S&P")
+myplot(SBUX, "SBUX")
+```
+
+
+
+# Data Analysis
+
+```{r}
+myfun <- function(df, name) {
+  df.n <- nrow(df)
+  
+  # CC return
+  cc.ret <- diff(log(df$price.adjusted), lag = 1)
+  
+  # Time plot
+  library(ggplot2)
+  
+  g <- ggplot() + 
+    geom_line(aes(y = cc.ret, x = df$ref.date[2:df.n])) + 
+    labs(x = "Time", y = "CC return") + 
+    ggtitle(name)
+  
+  print(g)
+  
+  # Four panel plot
+  par(mfrow = c(2,2))
+  
+	hist(cc.ret, main = "Monthly CC Returns",
+	     xlab = name, probability = TRUE, col = "slateblue1")
+	
+	boxplot(cc.ret, outchar = TRUE, main = "Boxplot", col = "slateblue1")
+	
+	plot(density(cc.ret), type = "l", main = "Smoothed density",
+	     xlab = "Monthly Return", ylab = "Density Estimate", col = "slateblue1")
+	
+	qqnorm(cc.ret, col = "slateblue1")
+	qqline(cc.ret)
+	
+	# JB test
+	library(quantmod)
+	library(tseries)
+	
+	test <- jarque.bera.test(cc.ret)
+	print(test)
+	
+	# Fit a GARCH(1, 1) to the time series
+	x.arch <- garch(cc.ret, order = c(1,1), trace = FALSE)
+  summary(x.arch)  # Diagnostic tests
+  
+  # Access estimates
+  b <- x.arch$coef
+  se <- sqrt(diag(x.arch$vcov))
+  print(b)
+  print(se)
+}
+```
+
+We can apply the above function to get results of interest.
+
+```{r}
+myfun(SP, "S&P")
+myfun(SBUX, "SBUX")
+```
+
+```{r}
+# See [this webpage](https://seankross.com/2016/02/29/A-Q-Q-Plot-Dissection-Kit.html) for more on QQ plot.
+```
