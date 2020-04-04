@@ -1,6 +1,6 @@
-# Financial Econometric 
+# Financial Econometric with R
 
-### *An Introduction*
+### *A Brief Introduction*
 
 ##### This repo is still in preparation! I'm constantly adding, deleting, updating files and datasets. Anything in this repo is not final, all mistakes are mine.
 
