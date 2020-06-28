@@ -1,10 +1,9 @@
-# Financial Econometric with R
+# Financial Econometric with R - *A Brief Introduction*
 
-### *A Brief Introduction*
-
-##### This repo is still in preparation! I'm constantly adding, deleting, updating files and datasets. Anything in this repo is not final, all mistakes are mine.
+* This repo is still in preparation! I'm constantly adding, deleting, updating files and datasets. Anything in this repo is not final, all mistakes are mine.
 
 * This repo contains some of the most basic applications of econometrics theories, including return calculations, probability/stats and risk management, time-series analysis, portfolio theories. 
+
 * Below is a short table of content: (you can find the corresponding folders and codes by number)
   	1. A quick review of R and rmarkdown
    	2. Data input, return calculation, and basic R graphics
